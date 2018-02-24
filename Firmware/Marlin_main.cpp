@@ -333,7 +333,7 @@ float filament_size[EXTRUDERS] = { DEFAULT_NOMINAL_FILAMENT_DIA
     #endif
   #endif
 };
-float volumetric_multiplier[EXTRUDERS] = {1.0
+float extruder_multiplier[EXTRUDERS] = {1.0
   #if EXTRUDERS > 1
     , 1.0
     #if EXTRUDERS > 2
@@ -408,18 +408,6 @@ bool cancel_heatup = false ;
 #else
   #define host_keepalive();
   #define KEEPALIVE_STATE(n);
-#endif
-
-#ifdef FILAMENT_SENSOR
-  //Variables for Filament Sensor input 
-  float filament_width_nominal=DEFAULT_NOMINAL_FILAMENT_DIA;  //Set nominal filament width, can be changed with M404 
-  bool filament_sensor=false;  //M405 turns on filament_sensor control, M406 turns it off 
-  float filament_width_meas=DEFAULT_MEASURED_FILAMENT_DIA; //Stores the measured filament diameter 
-  signed char measurement_delay[MAX_MEASUREMENT_DELAY+1];  //ring buffer to delay measurement  store extruder factor after subtracting 100 
-  int delay_index1=0;  //index into ring buffer
-  int delay_index2=-1;  //index into ring buffer - set to -1 on startup to indicate ring buffer needs to be initialized
-  float delay_dist=0; //delay distance counter  
-  int meas_delay_cm = MEASUREMENT_DELAY_CM;  //distance delay setting
 #endif
 
 const char errormagic[] PROGMEM = "Error:";
@@ -1045,6 +1033,7 @@ void setup()
 	    MYSERIAL.println("CrashDetect DISABLED");
 	}
 
+#ifdef TMC2130_LINEARITY_CORRECTION
 	tmc2130_wave_fac[X_AXIS] = eeprom_read_byte((uint8_t*)EEPROM_TMC2130_WAVE_X_FAC);
 	tmc2130_wave_fac[Y_AXIS] = eeprom_read_byte((uint8_t*)EEPROM_TMC2130_WAVE_Y_FAC);
 	tmc2130_wave_fac[Z_AXIS] = eeprom_read_byte((uint8_t*)EEPROM_TMC2130_WAVE_Z_FAC);
@@ -1053,7 +1042,9 @@ void setup()
 	if (tmc2130_wave_fac[Y_AXIS] == 0xff) tmc2130_wave_fac[Y_AXIS] = 0;
 	if (tmc2130_wave_fac[Z_AXIS] == 0xff) tmc2130_wave_fac[Z_AXIS] = 0;
 	if (tmc2130_wave_fac[E_AXIS] == 0xff) tmc2130_wave_fac[E_AXIS] = 0;
+#endif //TMC2130_LINEARITY_CORRECTION
 
+#ifdef TMC2130_VARIABLE_RESOLUTION
 	tmc2130_mres[X_AXIS] = eeprom_read_byte((uint8_t*)EEPROM_TMC2130_X_MRES);
 	tmc2130_mres[Y_AXIS] = eeprom_read_byte((uint8_t*)EEPROM_TMC2130_Y_MRES);
 	tmc2130_mres[Z_AXIS] = eeprom_read_byte((uint8_t*)EEPROM_TMC2130_Z_MRES);
@@ -1066,6 +1057,12 @@ void setup()
 	eeprom_update_byte((uint8_t*)EEPROM_TMC2130_Y_MRES, tmc2130_mres[Y_AXIS]);
 	eeprom_update_byte((uint8_t*)EEPROM_TMC2130_Z_MRES, tmc2130_mres[Z_AXIS]);
 	eeprom_update_byte((uint8_t*)EEPROM_TMC2130_E_MRES, tmc2130_mres[E_AXIS]);
+#else //TMC2130_VARIABLE_RESOLUTION
+	tmc2130_mres[X_AXIS] = tmc2130_usteps2mres(TMC2130_USTEPS_XY);
+	tmc2130_mres[Y_AXIS] = tmc2130_usteps2mres(TMC2130_USTEPS_XY);
+	tmc2130_mres[Z_AXIS] = tmc2130_usteps2mres(TMC2130_USTEPS_Z);
+	tmc2130_mres[E_AXIS] = tmc2130_usteps2mres(TMC2130_USTEPS_E);
+#endif //TMC2130_VARIABLE_RESOLUTION
 
 #endif //TMC2130
 
@@ -1140,6 +1137,51 @@ void setup()
 	// Force SD card update. Otherwise the SD card update is done from loop() on card.checkautostart(false), 
 	// but this times out if a blocking dialog is shown in setup().
 	card.initsd();
+#ifdef DEBUG_SD_SPEED_TEST
+	if (card.cardOK)
+	{
+		uint8_t* buff = (uint8_t*)block_buffer;
+		uint32_t block = 0;
+		uint32_t sumr = 0;
+		uint32_t sumw = 0;
+		for (int i = 0; i < 1024; i++)
+		{
+			uint32_t u = micros();
+			bool res = card.card.readBlock(i, buff);
+			u = micros() - u;
+			if (res)
+			{
+				printf_P(PSTR("readBlock %4d 512 bytes %lu us\n"), i, u);
+				sumr += u;
+				u = micros();
+				res = card.card.writeBlock(i, buff);
+				u = micros() - u;
+				if (res)
+				{
+					printf_P(PSTR("writeBlock %4d 512 bytes %lu us\n"), i, u);
+					sumw += u;
+				}
+				else
+				{
+					printf_P(PSTR("writeBlock %4d error\n"), i);
+					break;
+				}
+			}
+			else
+			{
+				printf_P(PSTR("readBlock %4d error\n"), i);
+				break;
+			}
+		}
+		uint32_t avg_rspeed = (1024 * 1000000) / (sumr / 512);
+		uint32_t avg_wspeed = (1024 * 1000000) / (sumw / 512);
+		printf_P(PSTR("avg read speed %lu bytes/s\n"), avg_rspeed);
+		printf_P(PSTR("avg write speed %lu bytes/s\n"), avg_wspeed);
+	}
+	else
+		printf_P(PSTR("Card NG!\n"));
+#endif DEBUG_SD_SPEED_TEST
+
 	if (eeprom_read_byte((uint8_t*)EEPROM_POWER_COUNT) == 0xff) eeprom_write_byte((uint8_t*)EEPROM_POWER_COUNT, 0);
 	if (eeprom_read_byte((uint8_t*)EEPROM_CRASH_COUNT_X) == 0xff) eeprom_write_byte((uint8_t*)EEPROM_CRASH_COUNT_X, 0);
 	if (eeprom_read_byte((uint8_t*)EEPROM_CRASH_COUNT_Y) == 0xff) eeprom_write_byte((uint8_t*)EEPROM_CRASH_COUNT_Y, 0);
@@ -1845,6 +1887,7 @@ void homeaxis(int axis, uint8_t cnt, uint8_t* pstep)
         // for the stall guard to work.
         current_position[axis] = 0;
         plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+		set_destination_to_current();
 //        destination[axis] = 11.f;
         destination[axis] = 3.f;
         plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder);
@@ -1972,11 +2015,7 @@ void refresh_cmd_timeout(void)
       destination[Y_AXIS]=current_position[Y_AXIS];
       destination[Z_AXIS]=current_position[Z_AXIS];
       destination[E_AXIS]=current_position[E_AXIS];
-      if (swapretract) {
-        current_position[E_AXIS]+=retract_length_swap/volumetric_multiplier[active_extruder];
-      } else {
-        current_position[E_AXIS]+=retract_length/volumetric_multiplier[active_extruder];
-      }
+      current_position[E_AXIS]+=(swapretract?retract_length_swap:retract_length)*float(extrudemultiply)*0.01f;
       plan_set_e_position(current_position[E_AXIS]);
       float oldFeedrate = feedrate;
       feedrate=retract_feedrate*60;
@@ -1993,12 +2032,7 @@ void refresh_cmd_timeout(void)
       destination[E_AXIS]=current_position[E_AXIS];
       current_position[Z_AXIS]+=retract_zlift;
       plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-      //prepare_move();
-      if (swapretract) {
-        current_position[E_AXIS]-=(retract_length_swap+retract_recover_length_swap)/volumetric_multiplier[active_extruder]; 
-      } else {
-        current_position[E_AXIS]-=(retract_length+retract_recover_length)/volumetric_multiplier[active_extruder]; 
-      }
+      current_position[E_AXIS]-=(swapretract?(retract_length_swap+retract_recover_length_swap):(retract_length+retract_recover_length))*float(extrudemultiply)*0.01f;
       plan_set_e_position(current_position[E_AXIS]);
       float oldFeedrate = feedrate;
       feedrate=retract_recover_feedrate*60;
@@ -5076,7 +5110,7 @@ Sigma_Exit:
           //reserved for setting filament diameter via UFID or filament measuring device
           break;
         }
-		calculate_volumetric_multipliers();
+		calculate_extruder_multipliers();
       }
       break;
     case 201: // M201
@@ -5244,6 +5278,7 @@ Sigma_Exit:
           extrudemultiply = tmp_code ;
         }
       }
+      calculate_extruder_multipliers();
     }
     break;
 
@@ -5481,69 +5516,6 @@ Sigma_Exit:
       st_synchronize();
     }
     break;
-
-#ifdef FILAMENT_SENSOR
-case 404:  //M404 Enter the nominal filament width (3mm, 1.75mm ) N<3.0> or display nominal filament width 
-    {
-    #if (FILWIDTH_PIN > -1) 
-    if(code_seen('N')) filament_width_nominal=code_value();
-    else{
-    SERIAL_PROTOCOLPGM("Filament dia (nominal mm):"); 
-    SERIAL_PROTOCOLLN(filament_width_nominal); 
-    }
-    #endif
-    }
-    break; 
-    
-    case 405:  //M405 Turn on filament sensor for control 
-    {
-    
-    
-    if(code_seen('D')) meas_delay_cm=code_value();
-       
-       if(meas_delay_cm> MAX_MEASUREMENT_DELAY)
-       	meas_delay_cm = MAX_MEASUREMENT_DELAY;
-    
-       if(delay_index2 == -1)  //initialize the ring buffer if it has not been done since startup
-    	   {
-    	   int temp_ratio = widthFil_to_size_ratio(); 
-       	    
-       	    for (delay_index1=0; delay_index1<(MAX_MEASUREMENT_DELAY+1); ++delay_index1 ){
-       	              measurement_delay[delay_index1]=temp_ratio-100;  //subtract 100 to scale within a signed byte
-       	        }
-       	    delay_index1=0;
-       	    delay_index2=0;	
-    	   }
-    
-    filament_sensor = true ; 
-    
-    //SERIAL_PROTOCOLPGM("Filament dia (measured mm):"); 
-    //SERIAL_PROTOCOL(filament_width_meas); 
-    //SERIAL_PROTOCOLPGM("Extrusion ratio(%):"); 
-    //SERIAL_PROTOCOL(extrudemultiply); 
-    } 
-    break; 
-    
-    case 406:  //M406 Turn off filament sensor for control 
-    {      
-    filament_sensor = false ; 
-    } 
-    break; 
-  
-    case 407:   //M407 Display measured filament diameter 
-    { 
-     
-    
-    
-    SERIAL_PROTOCOLPGM("Filament dia (measured mm):"); 
-    SERIAL_PROTOCOLLN(filament_width_meas);   
-    } 
-    break; 
-    #endif
-    
-
-
-
 
     case 500: // M500 Store settings in EEPROM
     {
@@ -6530,7 +6502,20 @@ void get_coordinates()
   for(int8_t i=0; i < NUM_AXIS; i++) {
     if(code_seen(axis_codes[i]))
     {
-      destination[i] = (float)code_value() + (axis_relative_modes[i] || relative_mode)*current_position[i];
+      bool relative = axis_relative_modes[i] || relative_mode;
+      destination[i] = (float)code_value();
+      if (i == E_AXIS) {
+        float emult = extruder_multiplier[active_extruder];
+        if (emult != 1.) {
+          if (! relative) {
+            destination[i] -= current_position[i];
+            relative = true;
+          }
+          destination[i] *= emult;
+        }
+      }
+      if (relative)
+        destination[i] += current_position[i];
       seen[i]=true;
     }
     else destination[i] = current_position[i]; //Are these else lines really needed?
@@ -6542,6 +6527,11 @@ void get_coordinates()
 		if (next_feedrate > MAX_SILENT_FEEDRATE) next_feedrate = MAX_SILENT_FEEDRATE;
 #endif //MAX_SILENT_FEEDRATE
     if(next_feedrate > 0.0) feedrate = next_feedrate;
+	if (!seen[0] && !seen[1] && !seen[2] && seen[3])
+	{
+//		float e_max_speed = 
+//		printf_P(PSTR("E MOVE speed %7.3f\n"), feedrate / 60)
+	}
   }
 }
 
@@ -7044,27 +7034,20 @@ void save_statistics(unsigned long _total_filament_used, unsigned long _total_pr
 
 }
 
-float calculate_volumetric_multiplier(float diameter) {
-	float area = .0;
-	float radius = .0;
-
-	radius = diameter * .5;
-	if (! volumetric_enabled || radius == 0) {
-		area = 1;
-	}
-	else {
-		area = M_PI * pow(radius, 2);
-	}
-
-	return 1.0 / area;
+float calculate_extruder_multiplier(float diameter) {
+  bool  enabled = volumetric_enabled && diameter > 0;
+  float area    = enabled ? (M_PI * pow(diameter * .5, 2)) : 0;
+	return (extrudemultiply == 100) ? 
+    (enabled ? (1.f / area) : 1.f) :
+    (enabled ? ((float(extrudemultiply) * 0.01f) / area) : 1.f);
 }
 
-void calculate_volumetric_multipliers() {
-	volumetric_multiplier[0] = calculate_volumetric_multiplier(filament_size[0]);
+void calculate_extruder_multipliers() {
+	extruder_multiplier[0] = calculate_extruder_multiplier(filament_size[0]);
 #if EXTRUDERS > 1
-	volumetric_multiplier[1] = calculate_volumetric_multiplier(filament_size[1]);
+	extruder_multiplier[1] = calculate_extruder_multiplier(filament_size[1]);
 #if EXTRUDERS > 2
-	volumetric_multiplier[2] = calculate_volumetric_multiplier(filament_size[2]);
+	extruder_multiplier[2] = calculate_extruder_multiplier(filament_size[2]);
 #endif
 #endif
 }
