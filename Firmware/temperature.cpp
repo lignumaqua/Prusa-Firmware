@@ -985,14 +985,18 @@ static void updateTemperaturesFromRawValues()
     }
 
 #ifdef PINDA_THERMISTOR
-	current_temperature_pinda = analog2tempPINDA(current_temperature_raw_pinda);
+	current_temperature_pinda = analog2tempBed(current_temperature_raw_pinda);
 #endif
 
 #ifdef AMBIENT_THERMISTOR
 	current_temperature_ambient = analog2tempAmbient(current_temperature_raw_ambient); //thermistor for ambient is NTCG104LH104JT1 (2000)
 #endif
    
+#ifdef DEBUG_HEATER_BED_SIM
+	current_temperature_bed = target_temperature_bed;
+#else //DEBUG_HEATER_BED_SIM
 	current_temperature_bed = analog2tempBed(current_temperature_bed_raw);
+#endif //DEBUG_HEATER_BED_SIM
 
     #ifdef TEMP_SENSOR_1_AS_REDUNDANT
       redundant_temperature = analog2temp(redundant_temperature_raw, 1);

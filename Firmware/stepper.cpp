@@ -101,8 +101,6 @@ static bool check_endstops = true;
 static bool check_z_endstop = false;
 static bool z_endstop_invert = false;
 
-int8_t SilentMode = 0;
-
 volatile long count_position[NUM_AXIS] = { 0, 0, 0, 0};
 volatile signed char count_direction[NUM_AXIS] = { 1, 1, 1, 1};
 
@@ -585,7 +583,12 @@ FORCE_INLINE void stepper_check_endstops()
       if (! check_z_endstop) {
         #ifdef TMC2130_SG_HOMING
           // Stall guard homing turned on
-          z_min_endstop = (READ(Z_MIN_PIN) != Z_MIN_ENDSTOP_INVERTING) || (READ(Z_TMC2130_DIAG) != 0);
+#ifdef TMC2130_STEALTH_Z
+		  if ((tmc2130_mode == TMC2130_MODE_SILENT) && !(tmc2130_sg_homing_axes_mask & 0x04))
+	          z_min_endstop = (READ(Z_MIN_PIN) != Z_MIN_ENDSTOP_INVERTING);
+		  else
+#endif //TMC2130_STEALTH_Z
+	          z_min_endstop = (READ(Z_MIN_PIN) != Z_MIN_ENDSTOP_INVERTING) || (READ(Z_TMC2130_DIAG) != 0);
         #else
           z_min_endstop = (READ(Z_MIN_PIN) != Z_MIN_ENDSTOP_INVERTING);
         #endif //TMC2130_SG_HOMING
@@ -601,6 +604,11 @@ FORCE_INLINE void stepper_check_endstops()
       #if defined(Z_MAX_PIN) && (Z_MAX_PIN > -1) && !defined(DEBUG_DISABLE_ZMAXLIMIT)
         #ifdef TMC2130_SG_HOMING
         // Stall guard homing turned on
+#ifdef TMC2130_STEALTH_Z
+		  if ((tmc2130_mode == TMC2130_MODE_SILENT) && !(tmc2130_sg_homing_axes_mask & 0x04))
+	          z_max_endstop = false;
+		  else
+#endif //TMC2130_STEALTH_Z
         z_max_endstop = (READ(Z_TMC2130_DIAG) != 0);
         #else
         z_max_endstop = (READ(Z_MAX_PIN) != Z_MAX_ENDSTOP_INVERTING);
@@ -622,7 +630,12 @@ FORCE_INLINE void stepper_check_endstops()
       // Good for searching for the center of an induction target.
       #ifdef TMC2130_SG_HOMING
       // Stall guard homing turned on
-        z_min_endstop = (READ(Z_MIN_PIN) != Z_MIN_ENDSTOP_INVERTING) || (READ(Z_TMC2130_DIAG) != 0);
+#ifdef TMC2130_STEALTH_Z
+		  if ((tmc2130_mode == TMC2130_MODE_SILENT) && !(tmc2130_sg_homing_axes_mask & 0x04))
+	          z_min_endstop = (READ(Z_MIN_PIN) != Z_MIN_ENDSTOP_INVERTING);
+		  else
+#endif //TMC2130_STEALTH_Z
+       z_min_endstop = (READ(Z_MIN_PIN) != Z_MIN_ENDSTOP_INVERTING) || (READ(Z_TMC2130_DIAG) != 0);
       #else
         z_min_endstop = (READ(Z_MIN_PIN) != Z_MIN_ENDSTOP_INVERTING);
       #endif //TMC2130_SG_HOMING
@@ -1017,7 +1030,7 @@ void st_init()
 	tmc2130_init();
 #endif //TMC2130
 
-  digipot_init(); //Initialize Digipot Motor Current
+  st_current_init(); //Initialize Digipot Motor Current
   microstep_init(); //Initialize Microstepping Pins
 
   //Initialize Dir Pins
@@ -1444,6 +1457,7 @@ void digitalPotWrite(int address, int value) // From Arduino DigitalPotControl e
   #endif
 }
 
+//*** MaR::180416_03
 void EEPROM_read_st(int pos, uint8_t* value, uint8_t size)
 {
     do
@@ -1455,27 +1469,15 @@ void EEPROM_read_st(int pos, uint8_t* value, uint8_t size)
 }
 
 
-void digipot_init() //Initialize Digipot Motor Current
+void st_current_init() //Initialize Digipot Motor Current
 {  
-  EEPROM_read_st(EEPROM_SILENT,(uint8_t*)&SilentMode,sizeof(SilentMode));
+uint8_t SilentMode = eeprom_read_byte((uint8_t*)EEPROM_SILENT);
   SilentModeMenu = SilentMode;
-  #if defined(DIGIPOTSS_PIN) && DIGIPOTSS_PIN > -1
-    if(SilentMode == 0){
-    const uint8_t digipot_motor_current[] = DIGIPOT_MOTOR_CURRENT_LOUD;
-    }else{
-      const uint8_t digipot_motor_current[] = DIGIPOT_MOTOR_CURRENT;
-    }
-    SPI.begin();
-    pinMode(DIGIPOTSS_PIN, OUTPUT);
-    for(int i=0;i<=4;i++)
-      //digitalPotWrite(digipot_ch[i], digipot_motor_current[i]);
-      digipot_current(i,digipot_motor_current[i]);
-  #endif
   #ifdef MOTOR_CURRENT_PWM_XY_PIN
     pinMode(MOTOR_CURRENT_PWM_XY_PIN, OUTPUT);
     pinMode(MOTOR_CURRENT_PWM_Z_PIN, OUTPUT);
     pinMode(MOTOR_CURRENT_PWM_E_PIN, OUTPUT);
-    if((SilentMode == 0) || (farm_mode) ){
+    if((SilentMode == SILENT_MODE_OFF) || (farm_mode) ){
 
      motor_current_setting[0] = motor_current_setting_loud[0];
      motor_current_setting[1] = motor_current_setting_loud[1];
@@ -1488,9 +1490,9 @@ void digipot_init() //Initialize Digipot Motor Current
      motor_current_setting[2] = motor_current_setting_silent[2];
 
     }
-    digipot_current(0, motor_current_setting[0]);
-    digipot_current(1, motor_current_setting[1]);
-    digipot_current(2, motor_current_setting[2]);
+    st_current_set(0, motor_current_setting[0]);
+    st_current_set(1, motor_current_setting[1]);
+    st_current_set(2, motor_current_setting[2]);
     //Set timer5 to 31khz so the PWM of the motor power is as constant as possible. (removes a buzzing noise)
     TCCR5B = (TCCR5B & ~(_BV(CS50) | _BV(CS51) | _BV(CS52))) | _BV(CS50);
   #endif
@@ -1499,12 +1501,8 @@ void digipot_init() //Initialize Digipot Motor Current
 
 
 
-void digipot_current(uint8_t driver, int current)
+void st_current_set(uint8_t driver, int current)
 {
-  #if defined(DIGIPOTSS_PIN) && DIGIPOTSS_PIN > -1
-    const uint8_t digipot_ch[] = DIGIPOT_CHANNELS;
-    digitalPotWrite(digipot_ch[driver], current);
-  #endif
   #ifdef MOTOR_CURRENT_PWM_XY_PIN
   if (driver == 0) analogWrite(MOTOR_CURRENT_PWM_XY_PIN, (long)current * 255L / (long)MOTOR_CURRENT_PWM_RANGE);
   if (driver == 1) analogWrite(MOTOR_CURRENT_PWM_Z_PIN, (long)current * 255L / (long)MOTOR_CURRENT_PWM_RANGE);

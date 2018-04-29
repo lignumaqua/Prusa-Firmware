@@ -18,6 +18,7 @@
 
 // Electronics
 #define MOTHERBOARD BOARD_EINSY_1_0a
+#define STEEL_SHEET
 #define HAS_SECOND_SERIAL_PORT
 
 
@@ -58,7 +59,7 @@ const bool Z_MIN_ENDSTOP_INVERTING = false; // set to true to invert the logic o
 // Travel limits after homing
 #define X_MAX_POS 255
 #define X_MIN_POS 0
-#define Y_MAX_POS 210
+#define Y_MAX_POS 212.5
 #define Y_MIN_POS -4 //orig -4
 #define Z_MAX_POS 210
 #define Z_MIN_POS 0.15
@@ -74,6 +75,8 @@ const bool Z_MIN_ENDSTOP_INVERTING = false; // set to true to invert the logic o
 
 #define NUM_AXIS 4 // The axis order in all axis related arrays is X, Y, Z, E
 #define HOMING_FEEDRATE {3000, 3000, 800, 0}  // set the homing speeds (mm/min) // 3000 is also valid for stallGuard homing. Valid range: 2200 - 3000
+
+#define DEFAULT_Y_OFFSET    2.f // Offset of [0;0] point, when the printer is not calibrated
 
 #define DEFAULT_MAX_FEEDRATE          {200, 200, 12, 120}      // (mm/sec)   max feedrate (M203)
 #define DEFAULT_MAX_ACCELERATION      {1000, 1000, 200, 5000}  // (mm/sec^2) max acceleration (M201)
@@ -106,6 +109,9 @@ const bool Z_MIN_ENDSTOP_INVERTING = false; // set to true to invert the logic o
 
 // New XYZ calibration
 #define NEW_XYZCAL
+
+// Do not use Arduino SPI 
+#define NEW_SPI
 
 // Watchdog support
 #define WATCHDOG
@@ -154,6 +160,7 @@ const bool Z_MIN_ENDSTOP_INVERTING = false; // set to true to invert the logic o
 //#define DEBUG_DISABLE_LCD_STATUS_LINE  //empty four lcd line
 //#define DEBUG_DISABLE_PREVENT_EXTRUDER //cold extrusion and long extrusion allowed
 //#define DEBUG_DISABLE_PRUSA_STATISTICS //disable prusa_statistics() mesages
+//#define DEBUG_DISABLE_FORCE_SELFTEST //disable force selftest
 //#define DEBUG_XSTEP_DUP_PIN 21   //duplicate x-step output to pin 21 (SCL on P3)
 //#define DEBUG_YSTEP_DUP_PIN 21   //duplicate y-step output to pin 21 (SCL on P3)
 //#define DEBUG_BLINK_ACTIVE
@@ -165,7 +172,7 @@ const bool Z_MIN_ENDSTOP_INVERTING = false; // set to true to invert the logic o
 #endif /* DEBUG_BUILD */
 
 //#define EXPERIMENTAL_FEATURES
-//#define TMC2130_LINEARITY_CORRECTION
+#define TMC2130_LINEARITY_CORRECTION
 //#define TMC2130_VARIABLE_RESOLUTION
 
 
@@ -237,9 +244,11 @@ const bool Z_MIN_ENDSTOP_INVERTING = false; // set to true to invert the logic o
 #define TMC2130_SG_THRS_E       3     // stallguard sensitivity for E axis
 
 //new settings is possible for vsense = 1, running current value > 31 set vsense to zero and shift both currents by 1 bit right (Z axis only)
-#define TMC2130_CURRENTS_H {16, 20, 28, 36}  // default holding currents for all axes
-#define TMC2130_CURRENTS_R {16, 20, 28, 36}  // default running currents for all axes
+#define TMC2130_CURRENTS_H {16, 20, 35, 26}  // default holding currents for all axes
+#define TMC2130_CURRENTS_R {16, 20, 35, 26}  // default running currents for all axes
 #define TMC2130_UNLOAD_CURRENT_R 12			 // lowe current for M600 to protect filament sensor 
+
+#define TMC2130_STEALTH_Z
 
 //#define TMC2130_DEBUG
 //#define TMC2130_DEBUG_WR
@@ -359,7 +368,7 @@ const bool Z_MIN_ENDSTOP_INVERTING = false; // set to true to invert the logic o
 #define DIGIPOT_MOTOR_CURRENT_LOUD {135,135,135,135,135}
 
 // Motor Current settings for RAMBo mini PWM value = MotorCurrentSetting * 255 / range
-#if MOTHERBOARD == 200 || MOTHERBOARD == 203
+#if MOTHERBOARD == BOARD_RAMBO_MINI_1_0 || MOTHERBOARD == BOARD_RAMBO_MINI_1_3
 #define MOTOR_CURRENT_PWM_RANGE 2000
 #define DEFAULT_PWM_MOTOR_CURRENT  {400, 750, 750} // {XY,Z,E}
 #define DEFAULT_PWM_MOTOR_CURRENT_LOUD  {400, 750, 750} // {XY,Z,E}
@@ -399,7 +408,7 @@ const bool Z_MIN_ENDSTOP_INVERTING = false; // set to true to invert the logic o
 #define MESH_HOME_Z_SEARCH 5 //Z lift for homing, mesh bed leveling etc.
 
 #define X_PROBE_OFFSET_FROM_EXTRUDER 23     // Z probe to nozzle X offset: -left  +right
-#define Y_PROBE_OFFSET_FROM_EXTRUDER 5     // Z probe to nozzle Y offset: -front +behind
+#define Y_PROBE_OFFSET_FROM_EXTRUDER 3     // Z probe to nozzle Y offset: -front +behind
 #define Z_PROBE_OFFSET_FROM_EXTRUDER -0.4  // Z probe to nozzle Z offset: -below (always!)
 #endif
 
@@ -458,7 +467,7 @@ const bool Z_MIN_ENDSTOP_INVERTING = false; // set to true to invert the logic o
  *------------------------------------*/
 
 #define FARM_PREHEAT_HOTEND_TEMP 250
-#define FARM_PREHEAT_HPB_TEMP 40
+#define FARM_PREHEAT_HPB_TEMP 60
 #define FARM_PREHEAT_FAN_SPEED 0
 
 #define PLA_PREHEAT_HOTEND_TEMP 215
@@ -572,6 +581,9 @@ const bool Z_MIN_ENDSTOP_INVERTING = false; // set to true to invert the logic o
 #define PING_TIME 60 //time in s
 #define PING_TIME_LONG 600 //10 min; used when length of commands buffer > 0 to avoid false triggering when dealing with long gcodes
 #define PING_ALLERT_PERIOD 60 //time in s
+
+#define NC_TIME 10 //time in s for periodic important status messages sending which needs reponse from monitoring
+#define NC_BUTTON_LONG_PRESS 15 //time in s
 
 #define LONG_PRESS_TIME 1000 //time in ms for button long press
 #define BUTTON_BLANKING_TIME 200 //time in ms for blanking after button release

@@ -170,6 +170,13 @@ const char * const MSG_BED_HEATING_LANG_TABLE[LANG_NUM] PROGMEM = {
 	MSG_BED_HEATING_CZ
 };
 
+const char MSG_BED_HEATING_SAFETY_DISABLED_EN[] PROGMEM = "Heating disabled by safety timer.";
+const char MSG_BED_HEATING_SAFETY_DISABLED_CZ[] PROGMEM = "Zahrivani preruseno bezpecnostnim casovacem.";
+const char * const MSG_BED_HEATING_SAFETY_DISABLED_LANG_TABLE[LANG_NUM] PROGMEM = {
+	MSG_BED_HEATING_SAFETY_DISABLED_EN,
+	MSG_BED_HEATING_SAFETY_DISABLED_CZ
+};
+
 const char MSG_BED_LEVELING_FAILED_POINT_HIGH_EN[] PROGMEM = "Bed leveling failed. Sensor triggered too high. Waiting for reset.";
 const char MSG_BED_LEVELING_FAILED_POINT_HIGH_CZ[] PROGMEM = "Kalibrace Z selhala. Sensor sepnul prilis vysoko. Cekam na reset.";
 const char * const MSG_BED_LEVELING_FAILED_POINT_HIGH_LANG_TABLE[LANG_NUM] PROGMEM = {
@@ -625,6 +632,16 @@ const char * const MSG_EXTRUDER_3_LANG_TABLE[1] PROGMEM = {
 const char MSG_EXTRUDER_4_EN[] PROGMEM = "Extruder 4";
 const char * const MSG_EXTRUDER_4_LANG_TABLE[1] PROGMEM = {
 	MSG_EXTRUDER_4_EN
+};
+
+const char MSG_EXTRUDER_CORRECTION_EN[] PROGMEM = "E-correct";
+const char * const MSG_EXTRUDER_CORRECTION_LANG_TABLE[1] PROGMEM = {
+	MSG_EXTRUDER_CORRECTION_EN
+};
+
+const char MSG_EXTRUDER_CORRECTION_OFF_EN[] PROGMEM = "  [off";
+const char * const MSG_EXTRUDER_CORRECTION_OFF_LANG_TABLE[1] PROGMEM = {
+	MSG_EXTRUDER_CORRECTION_OFF_EN
 };
 
 const char MSG_E_CAL_KNOB_EN[] PROGMEM = "Rotate knob until mark reaches extruder body. Click when done.";
@@ -1103,11 +1120,6 @@ const char * const MSG_M105_INVALID_EXTRUDER_LANG_TABLE[1] PROGMEM = {
 const char MSG_M109_INVALID_EXTRUDER_EN[] PROGMEM = "M109 Invalid extruder ";
 const char * const MSG_M109_INVALID_EXTRUDER_LANG_TABLE[1] PROGMEM = {
 	MSG_M109_INVALID_EXTRUDER_EN
-};
-
-const char MSG_M115_REPORT_EN[] PROGMEM = "FIRMWARE_NAME:Marlin V1.0.2; Sprinter/grbl mashup for gen6 FIRMWARE_URL:https://github.com/prusa3d/Prusa-i3-Plus/ PROTOCOL_VERSION:1.0 MACHINE_TYPE:" CUSTOM_MENDEL_NAME " EXTRUDER_COUNT:1 UUID:00000000-0000-0000-0000-000000000000\n";
-const char * const MSG_M115_REPORT_LANG_TABLE[1] PROGMEM = {
-	MSG_M115_REPORT_EN
 };
 
 const char MSG_M117_V2_CALIBRATION_EN[] PROGMEM = "M117 First layer cal.";
@@ -2187,8 +2199,8 @@ const char * const MSG_TEMP_CALIBRATION_LANG_TABLE[LANG_NUM] PROGMEM = {
 	MSG_TEMP_CALIBRATION_CZ
 };
 
-const char MSG_TEMP_CALIBRATION_DONE_EN[] PROGMEM = "Temperature calibration is finished. Click to continue.";
-const char MSG_TEMP_CALIBRATION_DONE_CZ[] PROGMEM = "Teplotni kalibrace dokoncena. Pokracujte stiskem tlacitka.";
+const char MSG_TEMP_CALIBRATION_DONE_EN[] PROGMEM = "Temperature calibration is finished and active. Temp. calibration can be disabled in menu Settings->Temp. cal.";
+const char MSG_TEMP_CALIBRATION_DONE_CZ[] PROGMEM = "Teplotni kalibrace dokoncena a je nyni aktivni. Teplotni kalibraci je mozno deaktivovat v menu Nastaveni->Tepl. kal.";
 const char * const MSG_TEMP_CALIBRATION_DONE_LANG_TABLE[LANG_NUM] PROGMEM = {
 	MSG_TEMP_CALIBRATION_DONE_EN,
 	MSG_TEMP_CALIBRATION_DONE_CZ
@@ -2206,6 +2218,13 @@ const char MSG_TEMP_CALIBRATION_ON_CZ[] PROGMEM = "Tepl. kal.  [zap]";
 const char * const MSG_TEMP_CALIBRATION_ON_LANG_TABLE[LANG_NUM] PROGMEM = {
 	MSG_TEMP_CALIBRATION_ON_EN,
 	MSG_TEMP_CALIBRATION_ON_CZ
+};
+
+const char MSG_TEMP_CAL_FAILED_EN[] PROGMEM = "Temperature calibration failed";
+const char MSG_TEMP_CAL_FAILED_CZ[] PROGMEM = "Teplotni kalibrace selhala";
+const char * const MSG_TEMP_CAL_FAILED_LANG_TABLE[LANG_NUM] PROGMEM = {
+	MSG_TEMP_CAL_FAILED_EN,
+	MSG_TEMP_CAL_FAILED_CZ
 };
 
 const char MSG_TEMP_CAL_WARNING_EN[] PROGMEM = "Stable ambient temperature 21-26C is needed a rigid stand is required.";
@@ -2342,6 +2361,13 @@ const char MSG_WAITING_TEMP_CZ[] PROGMEM = "Cekani na zchladnuti trysky a podloz
 const char * const MSG_WAITING_TEMP_LANG_TABLE[LANG_NUM] PROGMEM = {
 	MSG_WAITING_TEMP_EN,
 	MSG_WAITING_TEMP_CZ
+};
+
+const char MSG_WAITING_TEMP_PINDA_EN[] PROGMEM = "Waiting for PINDA probe cooling";
+const char MSG_WAITING_TEMP_PINDA_CZ[] PROGMEM = "Cekani na zchladnuti PINDA";
+const char * const MSG_WAITING_TEMP_PINDA_LANG_TABLE[LANG_NUM] PROGMEM = {
+	MSG_WAITING_TEMP_PINDA_EN,
+	MSG_WAITING_TEMP_PINDA_CZ
 };
 
 const char MSG_WATCH_EN[] PROGMEM = "Info screen";

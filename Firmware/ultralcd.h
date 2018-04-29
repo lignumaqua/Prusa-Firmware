@@ -120,6 +120,16 @@ void lcd_mylang();
   extern int farm_no;
   extern int farm_timer;
   extern int farm_status;
+  #ifdef TMC2130
+    #define SILENT_MODE_NORMAL 0
+    #define SILENT_MODE_STEALTH 1
+    #define SILENT_MODE_OFF SILENT_MODE_NORMAL
+  #else
+    #define SILENT_MODE_POWER 0
+    #define SILENT_MODE_SILENT 1
+    #define SILENT_MODE_AUTO 2
+    #define SILENT_MODE_OFF SILENT_MODE_POWER
+  #endif
   extern int8_t SilentModeMenu;
 
 #ifdef SNMM
@@ -204,7 +214,7 @@ char *ftostr31ns(const float &x); // float to string without sign character
 char *ftostr31(const float &x);
 char *ftostr32(const float &x);
 char *ftostr32ns(const float &x);
-char *ftostr43(const float &x);
+char *ftostr43(const float &x, uint8_t offset = 0);
 char *ftostr12ns(const float &x);
 char *ftostr13ns(const float &x);
 char *ftostr32sp(const float &x); // remove zero-padding from ftostr32
@@ -229,7 +239,7 @@ extern void lcd_implementation_print_at(uint8_t x, uint8_t y, const char *str);
 void change_extr(int extr);
 static void lcd_colorprint_change();
 static int get_ext_nr();
-static void extr_adj(int extruder);
+void extr_adj(int extruder);
 static void extr_adj_0();
 static void extr_adj_1();
 static void extr_adj_2();
@@ -269,6 +279,10 @@ void lcd_wait_for_heater();
 void lcd_wait_for_cool_down();
 void adjust_bed_reset();
 void lcd_extr_cal_reset();
+
+void lcd_temp_cal_show_result(bool result);
+bool lcd_wait_for_pinda(float temp);
+
 
 union MenuData;
 

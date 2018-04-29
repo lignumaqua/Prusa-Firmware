@@ -328,10 +328,6 @@ extern int fan_speed[2];
 // Handling multiple extruders pins
 extern uint8_t active_extruder;
 
-#ifdef DIGIPOT_I2C
-extern void digipot_i2c_set_current( int channel, float current );
-extern void digipot_i2c_init();
-#endif
 
 #endif
 
@@ -445,5 +441,4 @@ void gcode_M701();
 
 #define UVLO !(PINE & (1<<4))
 
-void extr_unload2();
 void proc_commands();

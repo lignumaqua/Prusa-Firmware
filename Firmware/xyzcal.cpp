@@ -369,8 +369,8 @@ void xyzcal_histo_pixels_32x32(uint8_t* pixels, uint16_t* histo)
 void xyzcal_adjust_pixels(uint8_t* pixels, uint16_t* histo)
 {
 	uint8_t l;
-	uint16_t max_c = histo[0];
-	uint8_t max_l = 0;
+	uint16_t max_c = histo[1];
+	uint8_t max_l = 1;
 	for (l = 1; l < 16; l++)
 	{
 		uint16_t c = histo[l];
@@ -381,11 +381,15 @@ void xyzcal_adjust_pixels(uint8_t* pixels, uint16_t* histo)
 		}
 	}
 	DBG(_n("max_c=%2d max_l=%d\n"), max_c, max_l);
-	for (l = 15; l > 8; l--)
+	for (l = 14; l > 8; l--)
 		if (histo[l] >= 10)
 			break;
-	uint8_t pix_min = (max_l + 2) << 4;
+	uint8_t pix_min = 0;
 	uint8_t pix_max = l << 4;
+	if (histo[0] < (32*32 - 144))
+	{
+		pix_min = (max_l << 4) / 2;
+	}
 	uint8_t pix_dif = pix_max - pix_min;
 	DBG(_n(" min=%d max=%d dif=%d\n"), pix_min, pix_max, pix_dif);
 	for (int16_t i = 0; i < 32*32; i++)
@@ -425,7 +429,7 @@ void xyzcal_draw_pattern_12x12_in_32x32(uint8_t* pattern, uint32_t* pixels, int 
 
 int16_t xyzcal_match_pattern_12x12_in_32x32(uint16_t* pattern, uint8_t* pixels, uint8_t c, uint8_t r)
 {
-	uint8_t thr = 32;
+	uint8_t thr = 16;
 	int16_t match = 0;
 	for (uint8_t i = 0; i < 12; i++)
 		for (uint8_t j = 0; j < 12; j++)
@@ -468,6 +472,117 @@ int16_t xyzcal_find_pattern_12x12_in_32x32(uint8_t* pixels, uint16_t* pattern, u
 	if (pc) *pc = max_c;
 	if (pr) *pr = max_r;
 	return max_match;
+}
+
+#define MAX_DIAMETR 600
+#define XYZCAL_FIND_CENTER_DIAGONAL
+
+int8_t xyzcal_find_point_center2(uint16_t delay_us)
+{
+	printf_P(PSTR("xyzcal_find_point_center2\n"));
+	int16_t x0 = _X;
+	int16_t y0 = _Y;
+	int16_t z0 = _Z;
+	printf_P(PSTR(" x0=%d\n"), x0);
+	printf_P(PSTR(" y0=%d\n"), y0);
+	printf_P(PSTR(" z0=%d\n"), z0);
+
+	xyzcal_lineXYZ_to(_X, _Y, z0 + 400, 500, -1);
+	xyzcal_lineXYZ_to(_X, _Y, z0 - 400, 500, 1);
+	xyzcal_lineXYZ_to(_X, _Y, z0 + 400, 500, -1);
+	xyzcal_lineXYZ_to(_X, _Y, z0 - 400, 500, 1);
+
+	z0 = _Z - 20;
+	xyzcal_lineXYZ_to(_X, _Y, z0, 500, 0);
+
+//	xyzcal_lineXYZ_to(x0, y0, z0 - 100, 500, 1);
+//	z0 = _Z;
+//	printf_P(PSTR("  z0=%d\n"), z0);
+//	xyzcal_lineXYZ_to(x0, y0, z0 + 100, 500, -1);
+//	z0 += _Z;
+//	z0 /= 2;
+	printf_P(PSTR("   z0=%d\n"), z0);
+//	xyzcal_lineXYZ_to(x0, y0, z0 - 100, 500, 1);
+//	z0 = _Z - 10;
+
+	int8_t ret = 1;
+
+#ifdef XYZCAL_FIND_CENTER_DIAGONAL
+	int32_t xc = 0;
+	int32_t yc = 0;
+	int16_t ad = 45;
+	for (; ad < 360; ad += 90)
+	{
+		float ar = (float)ad * _PI / 180;
+		int16_t x = x0 + MAX_DIAMETR * cos(ar);
+		int16_t y = y0 + MAX_DIAMETR * sin(ar);
+		if (!xyzcal_lineXYZ_to(x, y, z0, delay_us, -1))
+		{
+			printf_P(PSTR("ERROR ad=%d\n"), ad);
+			ret = 0;
+			break;
+		}
+		xc += _X;
+		yc += _Y;
+		xyzcal_lineXYZ_to(x0, y0, z0, delay_us, 0);
+	}
+	if (ret)
+	{
+		printf_P(PSTR("OK\n"), ad);
+		x0 = xc / 4;
+		y0 = yc / 4;
+		printf_P(PSTR(" x0=%d\n"), x0);
+		printf_P(PSTR(" y0=%d\n"), y0);
+	}
+
+#else //XYZCAL_FIND_CENTER_DIAGONAL
+	xyzcal_lineXYZ_to(x0 - MAX_DIAMETR, y0, z0, delay_us, -1);
+	int16_t dx1 = x0 - _X;
+	if (dx1 >= MAX_DIAMETR)
+	{
+		printf_P(PSTR("!!! dx1 = %d\n"), dx1);
+		return 0;
+	}
+	xyzcal_lineXYZ_to(x0, y0, z0, delay_us, 0);
+	xyzcal_lineXYZ_to(x0 + MAX_DIAMETR, y0, z0, delay_us, -1);
+	int16_t dx2 = _X - x0;
+	if (dx2 >= MAX_DIAMETR)
+	{
+		printf_P(PSTR("!!! dx2 = %d\n"), dx2);
+		return 0;
+	}
+	xyzcal_lineXYZ_to(x0, y0, z0, delay_us, 0);
+	xyzcal_lineXYZ_to(x0 , y0 - MAX_DIAMETR, z0, delay_us, -1);
+	int16_t dy1 = y0 - _Y;
+	if (dy1 >= MAX_DIAMETR)
+	{
+		printf_P(PSTR("!!! dy1 = %d\n"), dy1);
+		return 0;
+	}
+	xyzcal_lineXYZ_to(x0, y0, z0, delay_us, 0);
+	xyzcal_lineXYZ_to(x0, y0 + MAX_DIAMETR, z0, delay_us, -1);
+	int16_t dy2 = _Y - y0;
+	if (dy2 >= MAX_DIAMETR)
+	{
+		printf_P(PSTR("!!! dy2 = %d\n"), dy2);
+		return 0;
+	}
+	printf_P(PSTR("dx1=%d\n"), dx1);
+	printf_P(PSTR("dx2=%d\n"), dx2);
+	printf_P(PSTR("dy1=%d\n"), dy1);
+	printf_P(PSTR("dy2=%d\n"), dy2);
+
+	x0 += (dx2 - dx1) / 2;
+	y0 += (dy2 - dy1) / 2;
+
+	printf_P(PSTR(" x0=%d\n"), x0);
+	printf_P(PSTR(" y0=%d\n"), y0);
+
+#endif //XYZCAL_FIND_CENTER_DIAGONAL
+
+	xyzcal_lineXYZ_to(x0, y0, z0, delay_us, 0);
+
+	return ret;
 }
 
 #ifdef XYZCAL_FIND_POINT_CENTER
@@ -568,16 +683,16 @@ uint8_t xyzcal_xycoords2point(int16_t x, int16_t y)
 }
 
 //MK3
-#if ((MOTHERBOARD == 310))
+#if ((MOTHERBOARD == BOARD_EINSY_1_0a))
 const int16_t PROGMEM xyzcal_point_xcoords[4] = {1200, 22000, 22000, 1200};
 const int16_t PROGMEM xyzcal_point_ycoords[4] = {600, 600, 19800, 19800};
-#endif //((MOTHERBOARD == 310))
+#endif //((MOTHERBOARD == BOARD_EINSY_1_0a))
 
 //MK2.5
-#if ((MOTHERBOARD == 200) || (MOTHERBOARD == 203))
+#if ((MOTHERBOARD == BOARD_RAMBO_MINI_1_0) || (MOTHERBOARD == BOARD_RAMBO_MINI_1_3))
 const int16_t PROGMEM xyzcal_point_xcoords[4] = {1200, 22000, 22000, 1200};
 const int16_t PROGMEM xyzcal_point_ycoords[4] = {700, 700, 19800, 19800};
-#endif //((MOTHERBOARD == 200) || (MOTHERBOARD == 203))
+#endif //((MOTHERBOARD == BOARD_RAMBO_MINI_1_0) || (MOTHERBOARD == BOARD_RAMBO_MINI_1_3))
 
 const uint16_t PROGMEM xyzcal_point_pattern[12] = {0x000, 0x0f0, 0x1f8, 0x3fc, 0x7fe, 0x7fe, 0x7fe, 0x7fe, 0x3fc, 0x1f8, 0x0f0, 0x000};
 
@@ -671,7 +786,22 @@ bool xyzcal_find_bed_induction_sensor_point_xy(void)
 		xyzcal_lineXYZ_to(x, y, z, 200, 0);
 		if (xyzcal_scan_and_process())
 		{
-			ret = true;
+			if (xyzcal_find_point_center2(500))
+			{
+				uint32_t x_avg = 0;
+				uint32_t y_avg = 0;
+				uint8_t n; for (n = 0; n < 4; n++)
+				{
+					if (!xyzcal_find_point_center2(1000)) break;
+					x_avg += _X;
+					y_avg += _Y;	
+				}
+				if (n == 4)
+				{
+					xyzcal_lineXYZ_to(x_avg >> 2, y_avg >> 2, _Z, 200, 0);
+					ret = true;
+				}
+			}
 		}
 	}
 	xyzcal_meassure_leave();
